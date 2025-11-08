@@ -1,0 +1,38 @@
+{
+  "ocr": {
+    "engine": "pytesseract",
+    "custom_words": ["invoice", "contract", "amount", "date", "number"],
+    "lang": "chi_sim+eng"
+  },
+  "extraction": {
+    "fields": [
+      {
+        "name": "Invoice Number",
+        "pattern": "invoice number",
+        "description": "Invoice number field"
+      },
+      {
+        "name": "Amount",
+        "pattern": "total",
+        "description": "Amount field"
+      },
+      {
+        "name": "Date",
+        "pattern": "date",
+        "description": "Date field",
+        "entity_type": "DATE"
+      },
+      {
+        "name": "Contract Number",
+        "pattern": "contract number",
+        "description": "Contract number field"
+      },
+      {
+        "name": "Expiration Date",
+        "pattern": "expiration date",
+        "description": "Expiration date field",
+        "entity_type": "DATE"
+      }
+    ]
+  }
+}
