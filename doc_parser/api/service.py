@@ -143,7 +143,8 @@ async def get_config():
     """Get current configuration"""
     return JSONResponse(content={
         "ocr": client.processor.config.ocr.dict(),
-        "extraction": client.processor.config.extraction.dict()
+        "extraction": client.processor.config.extraction.dict(),
+        "validation": client.processor.config.validation.dict()
     })
 
 
@@ -152,7 +153,7 @@ async def update_config(config_data: dict):
     """
     Update client configuration
 
-    - **config_data**: Configuration dictionary containing ocr and extraction fields
+    - **config_data**: Configuration dictionary containing ocr, extraction, and validation fields
     """
     try:
         client.update_config(**config_data)

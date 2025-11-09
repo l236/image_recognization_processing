@@ -1,38 +1,138 @@
 {
+  "document_type": "universal",
   "ocr": {
     "engine": "pytesseract",
-    "custom_words": ["invoice", "contract", "amount", "date", "number"],
-    "lang": "chi_sim+eng"
+    "custom_words": [
+      "发票", "合同", "金额", "日期", "编号", "公司", "地址", "电话",
+      "invoice", "contract", "amount", "date", "number", "company", "address", "phone",
+      "总计", "小计", "税率", "税额", "合计", "人民币", "美元", "欧元",
+      "付款方", "收款方", "payer", "payee",
+      "签发日期", "开票日期", "issue date",
+      "发票代码", "发票号码", "invoice code",
+      "纳税人识别号", "tax id",
+      "合同编号", "contract no.",
+      "有效期至", "valid until",
+      "报销", "审核", "审批", "reimbursement", "audit", "approval"
+    ],
+    "lang": "chi_sim+eng",
+    "page_segmentation_mode": 6
   },
   "extraction": {
     "fields": [
       {
-        "name": "Invoice Number",
-        "pattern": "invoice number",
-        "description": "Invoice number field"
+        "name": "Document Type",
+        "pattern": ["发票", "合同", "报销单", "invoice", "contract", "reimbursement"],
+        "description": "Type of document (invoice/contract/reimbursement)",
+        "regex_patterns": [
+          "(发票|合同|报销单|invoice|contract|reimbursement)",
+          "([\\w\\s]+)(?:发票|合同|报销)"
+        ]
+      },
+      {
+        "name": "Company/Vendor",
+        "pattern": ["公司", "供应商", "vendor", "company", "甲方", "party a", "付款方", "payee"],
+        "description": "Company or vendor name",
+        "regex_patterns": [
+          "公司[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "供应商[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "vendor[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "甲方[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "付款方[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "([A-Za-z\\s]+)\\s+(?:Inc|Corp|Ltd|LLC|Company)",
+          "([\\w\\s\u4e00-\u9fff]+公司)"
+        ]
       },
       {
         "name": "Amount",
-        "pattern": "total",
-        "description": "Amount field"
+        "pattern": ["金额", "总计", "合计", "小计", "amount", "total", "subtotal"],
+        "description": "Monetary amount",
+        "regex_patterns": [
+          "金额[:：]\\s*[￥$]?([\\d,\\.]+)",
+          "总计[:：]\\s*[￥$]?([\\d,\\.]+)",
+          "合计[:：]\\s*[￥$]?([\\d,\\.]+)",
+          "人民币([\\d,\\.]+)元?",
+          "\\$([\\d,\\.]+)",
+          "￥([\\d,\\.]+)",
+          "amount[:：]\\s*\\$?([\\d,\\.]+)",
+          "total[:：]\\s*\\$?([\\d,\\.]+)"
+        ],
+        "post_process": "amount_normalize"
       },
       {
         "name": "Date",
-        "pattern": "date",
-        "description": "Date field",
-        "entity_type": "DATE"
+        "pattern": ["日期", "date", "开票日期", "签订日期", "invoice date", "contract date"],
+        "description": "Document date",
+        "entity_type": "DATE",
+        "regex_patterns": [
+          "日期[:：]\\s*([\\d\\-\\./年月日\\s]+)",
+          "开票日期[:：]\\s*([\\d\\-\\./年月日\\s]+)",
+          "签订日期[:：]\\s*([\\d\\-\\./年月日\\s]+)",
+          "\\d{4}年\\d{1,2}月\\d{1,2}日",
+          "\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}",
+          "(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s+\\d{4}"
+        ],
+        "post_process": "date_normalize"
       },
       {
-        "name": "Contract Number",
-        "pattern": "contract number",
-        "description": "Contract number field"
+        "name": "Document Number",
+        "pattern": ["编号", "号码", "number", "no", "code"],
+        "description": "Document reference number",
+        "regex_patterns": [
+          "编号[:：]\\s*([\\w\\d\\-]+)",
+          "号码[:：]\\s*([\\w\\d\\-]+)",
+          "发票号码[:：]\\s*([\\w\\d\\-]+)",
+          "合同编号[:：]\\s*([\\w\\d\\-]+)",
+          "number[:：]\\s*([\\w\\d\\-]+)",
+          "no[:：]\\s*([\\w\\d\\-]+)"
+        ]
       },
       {
-        "name": "Expiration Date",
-        "pattern": "expiration date",
-        "description": "Expiration date field",
-        "entity_type": "DATE"
+        "name": "Tax Amount",
+        "pattern": ["税额", "税金", "tax", "vat"],
+        "description": "Tax or VAT amount",
+        "regex_patterns": [
+          "税额[:：]\\s*[￥$]?([\\d,\\.]+)",
+          "税金[:：]\\s*[￥$]?([\\d,\\.]+)",
+          "tax[:：]\\s*[￥$]?([\\d,\\.]+)",
+          "vat[:：]\\s*[￥$]?([\\d,\\.]+)"
+        ],
+        "post_process": "amount_normalize"
+      },
+      {
+        "name": "Approval Status",
+        "pattern": ["审批", "审核", "状态", "approval", "audit", "status"],
+        "description": "Approval or audit status",
+        "regex_patterns": [
+          "审批[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "审核[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "状态[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "approval[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "status[:：]\\s*([\\w\\s\u4e00-\u9fff]+)"
+        ]
       }
     ]
+  },
+  "validation": {
+    "confidence_threshold": 0.7,
+    "required_fields": ["Document Type", "Amount", "Date"],
+    "business_rules": {
+      "invoice_reimbursement": {
+        "required_fields": ["Document Type", "Company/Vendor", "Amount", "Date", "Tax Amount"],
+        "amount_limits": {
+          "max_amount": 50000,
+          "currency": "CNY"
+        }
+      },
+      "contract_audit": {
+        "required_fields": ["Document Type", "Company/Vendor", "Amount", "Date", "Document Number"],
+        "validation_checks": ["amount_reasonable", "date_future_check", "vendor_approved"]
+      }
+    },
+    "amount_format": {
+      "decimal_places": 2,
+      "thousand_separator": ",",
+      "decimal_separator": "."
+    },
+    "date_format": "YYYY-MM-DD"
   }
 }

@@ -12,10 +12,20 @@ from .ocr import OCREngine, OCRConfig
 from .extractor import StructuredExtractor, ExtractionConfig, ExtractedField
 
 
+class ValidationConfig(BaseModel):
+    """Validation configuration"""
+    confidence_threshold: float = Field(default=0.8, description="Minimum confidence threshold")
+    required_fields: List[str] = Field(default_factory=list, description="Required field names")
+    business_rules: Optional[Dict[str, Any]] = Field(default=None, description="Business-specific validation rules")
+    amount_format: Optional[Dict[str, Any]] = Field(default=None, description="Amount formatting rules")
+    date_format: str = Field(default="YYYY-MM-DD", description="Expected date format")
+
+
 class DocumentProcessorConfig(BaseModel):
     """Document processor configuration"""
     ocr: OCRConfig
     extraction: ExtractionConfig
+    validation: ValidationConfig = Field(default_factory=ValidationConfig)
 
 
 class StructuredOutput(BaseModel):
@@ -24,7 +34,9 @@ class StructuredOutput(BaseModel):
     raw_text: str
     extracted_fields: List[ExtractedField]
     low_confidence_fields: List[str]
+    missing_required_fields: List[str]
     overall_confidence: float
+    validation_passed: bool
 
 
 class DocumentProcessor:
@@ -45,35 +57,77 @@ class DocumentProcessor:
         Returns:
             Structured output
         """
-        # Load images
-        images = self._load_images(file_path)
+        path = Path(file_path)
+        ext = path.suffix.lower()
 
-        all_text = ""
-        all_results = []
+        if ext == '.pdf':
+            # Try to extract text directly from PDF first
+            text_result = self._extract_text_from_pdf(file_path)
+            if text_result['has_text']:
+                # PDF has extractable text, use it directly
+                all_text = text_result['text']
+                combined_ocr = {
+                    'text': all_text,
+                    'confidence': 95.0,  # High confidence for direct text extraction
+                    'bboxes': []
+                }
+            else:
+                # PDF is image-based, use optimized OCR for Chinese content
+                print(f"Processing image-based PDF with OCR (this may take time for Chinese text)...")
+                images = self._convert_pdf_to_images(file_path)
+                all_text = ""
+                all_results = []
 
-        # OCR process each image
-        for img_path in images:
-            ocr_result = self.ocr_engine.recognize(img_path)
-            all_text += ocr_result['text'] + "\n"
-            all_results.append(ocr_result)
+                # OCR process each image with timeout protection
+                for i, img_path in enumerate(images):
+                    print(f"Processing page {i+1}/{len(images)}...")
+                    try:
+                        ocr_result = self.ocr_engine.recognize(img_path)
+                        all_text += ocr_result['text'] + "\n"
+                        all_results.append(ocr_result)
+                    except Exception as e:
+                        print(f"OCR failed for page {i+1}: {e}")
+                        continue
 
-        # Combine OCR results
-        combined_ocr = {
-            'text': all_text.strip(),
-            'confidence': sum(r['confidence'] for r in all_results) / len(all_results) if all_results else 0,
-            'bboxes': [bbox for r in all_results for bbox in r['bboxes']]
-        }
+                # Combine OCR results
+                combined_ocr = {
+                    'text': all_text.strip(),
+                    'confidence': sum(r['confidence'] for r in all_results) / len(all_results) if all_results else 0,
+                    'bboxes': [bbox for r in all_results for bbox in r['bboxes']]
+                }
+        else:
+            # For image files, use OCR directly
+            ocr_result = self.ocr_engine.recognize(file_path)
+            all_text = ocr_result['text']
+            combined_ocr = {
+                'text': all_text,
+                'confidence': ocr_result['confidence'],
+                'bboxes': ocr_result['bboxes']
+            }
 
         # Structured extraction
         extracted_fields = self.extractor.extract(all_text, combined_ocr)
-        low_confidence = [f.name for f in extracted_fields if f.confidence < 80]
+
+        # Validation
+        low_confidence = [f.name for f in extracted_fields
+                         if f.confidence / 100.0 < self.config.validation.confidence_threshold]
+
+        # Check required fields
+        extracted_field_names = {f.name for f in extracted_fields if f.value}
+        missing_required = [field for field in self.config.validation.required_fields
+                           if field not in extracted_field_names]
+
+        # Overall validation
+        validation_passed = len(low_confidence) == 0 and len(missing_required) == 0
 
         return StructuredOutput(
             filename=Path(file_path).name,
             raw_text=all_text,
             extracted_fields=extracted_fields,
             low_confidence_fields=low_confidence,
-            overall_confidence=combined_ocr['confidence']
+            missing_required_fields=missing_required,
+            overall_confidence=combined_ocr['confidence'],
+            validation_passed=validation_passed
         )
 
     def process_files_batch(self, file_paths: List[str]) -> List[StructuredOutput]:
@@ -98,7 +152,9 @@ class DocumentProcessor:
                     raw_text=f"Processing failed: {str(e)}",
                     extracted_fields=[],
                     low_confidence_fields=[],
-                    overall_confidence=0.0
+                    missing_required_fields=self.config.validation.required_fields.copy(),
+                    overall_confidence=0.0,
+                    validation_passed=False
                 )
                 results.append(error_result)
 
@@ -123,6 +179,36 @@ class DocumentProcessor:
             return self._convert_pdf_to_images(file_path)
         else:
             raise ValueError(f"Unsupported file type: {ext}")
+
+    def _extract_text_from_pdf(self, pdf_path: str) -> Dict[str, Any]:
+        """Extract text directly from PDF"""
+        try:
+            import pdfplumber
+            all_text = []
+
+            with pdfplumber.open(pdf_path) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        all_text.append(page_text)
+
+            combined_text = '\n'.join(all_text)
+
+            # Check if we got meaningful text (more than just whitespace)
+            has_text = len(combined_text.strip()) > 100  # At least 100 characters
+
+            return {
+                'has_text': has_text,
+                'text': combined_text.strip(),
+                'pages': len(all_text)
+            }
+
+        except ImportError:
+            print("pdfplumber not available, falling back to OCR")
+            return {'has_text': False, 'text': '', 'pages': 0}
+        except Exception as e:
+            print(f"PDF text extraction failed: {e}, falling back to OCR")
+            return {'has_text': False, 'text': '', 'pages': 0}
 
     def _convert_pdf_to_images(self, pdf_path: str) -> List[str]:
         """Convert PDF to images"""
@@ -178,9 +264,10 @@ class DocumentProcessor:
 
         # Save validation list
         low_conf_rows = []
+        threshold_percent = self.config.validation.confidence_threshold * 100
         for res in results:
             for field in res.extracted_fields:
-                if field.confidence < 80:
+                if field.confidence < threshold_percent:
                     low_conf_rows.append({
                         'filename': res.filename,
                         'field_name': field.name,

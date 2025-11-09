@@ -39,14 +39,56 @@ pip install -e .
 pip install git+https://github.com/l236/image_recognization_processing.git
 ```
 
-### System Dependencies
+### Method 3: Using Conda (Recommended)
 
-1. Install spaCy Chinese model:
+For better dependency management and reproducibility, especially with the computer vision libraries used in this project:
+
+1. Install Miniconda or Anaconda if not already installed:
 ```bash
-python -m spacy download zh_core_web_sm
+# macOS
+brew install --cask miniconda
+
+# Or download from https://docs.conda.io/en/latest/miniconda.html
 ```
 
-2. Install Tesseract OCR:
+2. Create and activate the conda environment:
+```bash
+# Create environment from the provided environment.yml
+conda env create -f environment.yml
+
+# Activate the environment
+conda activate image_recognization_processing
+```
+
+3. Install the package in development mode:
+```bash
+pip install -e .
+```
+
+4. **Required**: Download spaCy models using the setup script:
+```bash
+python setup_spacy.py
+```
+This script will automatically download and verify the required Chinese and English spaCy models.
+
+### System Dependencies
+
+#### 1. Install spaCy Models (Required)
+```bash
+# Install spaCy first
+pip install spacy==3.7.2
+
+# Download Chinese model (primary, required for Chinese document processing)
+python -m spacy download zh_core_web_sm
+
+# Download English model (fallback, recommended)
+python -m spacy download en_core_web_sm
+
+# Verify installation
+python -c "import spacy; nlp = spacy.load('zh_core_web_sm'); print('✅ Chinese model loaded successfully')"
+```
+
+#### 2. Install Tesseract OCR
 ```bash
 # macOS
 brew install tesseract tesseract-lang
@@ -89,18 +131,17 @@ doc-parser-batch input_folder output_folder --config custom_config.json
 
 #### API Service
 ```bash
-# Start HTTP API service
-doc-parser-api
-
+# Start FastAPI service
+python -m doc_parser.api.service
 # Service will start on http://localhost:8000
 ```
 
 ### Web Interface
 
 ```bash
-# Start Streamlit interface
-pip install streamlit
+# Start Streamlit web interface
 streamlit run main.py
+# Interface will open in browser at http://localhost:8501
 ```
 
 ### HTTP API

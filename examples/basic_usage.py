@@ -16,7 +16,7 @@ def main():
     client = DocumentParserClient()
 
     # 2. Process single file
-    sample_file = "path/to/your/document.pdf"  # Replace with actual file path
+    sample_file = "/Users/likangjia/image_recognization_processing/test_files/course.png"  # Replace with actual file path
 
     if Path(sample_file).exists():
         print(f"Processing file: {sample_file}")
@@ -42,8 +42,8 @@ def main():
         print("Please provide a valid file path")
 
     # 3. Batch process directory
-    input_dir = "path/to/input/directory"  # Replace with actual directory path
-    output_dir = "path/to/output/directory"  # Replace with output directory path
+    input_dir = "/Users/likangjia/image_recognization_processing/test_files"  # Replace with actual directory path
+    output_dir = "/Users/likangjia/image_recognization_processing/output_files"  # Replace with output directory path
 
     if Path(input_dir).exists():
         print(f"\nBatch processing directory: {input_dir}")
@@ -84,7 +84,7 @@ def main():
         }
     }
 
-    client.update_config(**new_config)
+    client.update_config(ocr_config=new_config['ocr'], extraction_config=new_config['extraction'])
     print("Configuration updated")
 
 if __name__ == "__main__":

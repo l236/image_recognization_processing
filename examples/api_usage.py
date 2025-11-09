@@ -15,7 +15,7 @@ def main():
     base_url = "http://localhost:8000"
 
     # Sample file path
-    sample_file = "path/to/your/document.pdf"
+    sample_file = "/Users/likangjia/image_recognization_processing/test_files/course.png"
 
     print("API usage example")
     print(f"Server address: {base_url}")
@@ -82,21 +82,42 @@ def main():
         "ocr": {
             "engine": "pytesseract",
             "custom_words": ["invoice", "contract", "amount", "date"],
-            "lang": "chi_sim+eng"
+            "lang": "chi_sim+eng",
+            "page_segmentation_mode": 3
         },
         "extraction": {
             "fields": [
                 {
                     "name": "Invoice Number",
-                    "pattern": "invoice number",
-                    "description": "Invoice number field"
+                    "pattern": ["invoice number", "发票号码"],
+                    "description": "Invoice number field",
+                    "regex_patterns": ["Invoice No\\.?\\s*(\\w+)", "发票号码[:：]\\s*(\\w+)"]
                 },
                 {
                     "name": "Amount",
-                    "pattern": "total",
-                    "description": "Amount field"
+                    "pattern": ["total", "amount", "总计"],
+                    "description": "Amount field",
+                    "regex_patterns": ["\\$\\s*([\\d,\\.]+)", "￥\\s*([\\d,\\.]+)"],
+                    "post_process": "amount_normalize"
+                },
+                {
+                    "name": "Date",
+                    "pattern": ["date", "日期"],
+                    "description": "Date field",
+                    "regex_patterns": ["\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}"],
+                    "post_process": "date_normalize"
                 }
             ]
+        },
+        "validation": {
+            "confidence_threshold": 0.8,
+            "required_fields": ["Invoice Number", "Amount"],
+            "amount_format": {
+                "decimal_places": 2,
+                "thousand_separator": ",",
+                "decimal_separator": "."
+            },
+            "date_format": "YYYY-MM-DD"
         }
     }
 
@@ -105,6 +126,18 @@ def main():
         print("✓ Configuration updated successfully")
     else:
         print(f"✗ Configuration update failed: {response.text}")
+
+    # 6. Get updated configuration
+    print("\\nGet updated configuration:")
+    response = requests.get(f"{base_url}/config")
+    if response.status_code == 200:
+        config = response.json()
+        print("Configuration sections:", list(config.keys()))
+        print(f"OCR language: {config['ocr']['lang']}")
+        print(f"Validation threshold: {config['validation']['confidence_threshold']}")
+        print(f"Required fields: {config['validation']['required_fields']}")
+    else:
+        print(f"Failed to get configuration: {response.text}")
 
     print("\nAPI usage completed")
 

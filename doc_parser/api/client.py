@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Union
 import json
 import os
 
-from ..core.processor import DocumentProcessor, DocumentProcessorConfig
+from ..core.processor import DocumentProcessor, DocumentProcessorConfig, ValidationConfig
 from ..core.ocr import OCRConfig
 from ..core.extractor import ExtractionConfig, FieldRule
 
@@ -34,22 +34,42 @@ class DocumentParserClient:
             config_data = {
                 "ocr": {
                     "engine": "pytesseract",
-                    "custom_words": ["invoice", "contract", "amount", "date"],
+                    "custom_words": ["invoice", "contract", "amount", "date", "发票", "合同", "金额", "日期"],
                     "lang": "chi_sim+eng"
                 },
                 "extraction": {
                     "fields": [
-                        {"name": "Invoice Number", "pattern": "invoice number"},
-                        {"name": "Amount", "pattern": "total"},
-                        {"name": "Date", "pattern": "date", "entity_type": "DATE"}
+                        {
+                            "name": "Invoice Number",
+                            "pattern": ["invoice number", "发票号码", "invoice no"],
+                            "regex_patterns": ["Invoice No\\.?\\s*(\\w+)", "发票号码[:：]\\s*(\\w+)"]
+                        },
+                        {
+                            "name": "Amount",
+                            "pattern": ["total", "amount", "总计", "合计"],
+                            "regex_patterns": ["\\$\\s*([\\d,\\.]+)", "￥\\s*([\\d,\\.]+)", "金额[:：]\\s*([\\d,\\.]+)"],
+                            "post_process": "amount_normalize"
+                        },
+                        {
+                            "name": "Date",
+                            "pattern": ["date", "日期", "开票日期"],
+                            "entity_type": "DATE",
+                            "regex_patterns": ["\\d{4}[-年]\\d{1,2}[-月]\\d{1,2}日?", "\\d{4}/\\d{1,2}/\\d{1,2}"],
+                            "post_process": "date_normalize"
+                        }
                     ]
+                },
+                "validation": {
+                    "confidence_threshold": 0.8,
+                    "required_fields": []
                 }
             }
 
         # Parse configuration
         ocr_config = OCRConfig(**config_data['ocr'])
         extraction_config = ExtractionConfig(**config_data['extraction'])
-        processor_config = DocumentProcessorConfig(ocr=ocr_config, extraction=extraction_config)
+        validation_config = ValidationConfig(**config_data.get('validation', {}))
+        processor_config = DocumentProcessorConfig(ocr=ocr_config, extraction=extraction_config, validation=validation_config)
 
         self.processor = DocumentProcessor(processor_config)
 
@@ -133,13 +153,14 @@ class DocumentParserClient:
 
         return all_text.strip()
 
-    def update_config(self, ocr_config: Dict[str, Any] = None, extraction_config: Dict[str, Any] = None):
+    def update_config(self, ocr_config: Dict[str, Any] = None, extraction_config: Dict[str, Any] = None, validation_config: Dict[str, Any] = None):
         """
         Update configuration
 
         Args:
             ocr_config: OCR configuration dictionary
             extraction_config: Extraction configuration dictionary
+            validation_config: Validation configuration dictionary
         """
         if ocr_config:
             self.processor.config.ocr = OCRConfig(**ocr_config)
@@ -148,3 +169,6 @@ class DocumentParserClient:
         if extraction_config:
             self.processor.config.extraction = ExtractionConfig(**extraction_config)
             self.processor.extractor = self.processor.extractor.__class__(self.processor.config.extraction)
+
+        if validation_config:
+            self.processor.config.validation = ValidationConfig(**validation_config)

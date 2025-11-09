@@ -1,0 +1,18 @@
+name: image_recognization_processing
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.8
+  - numpy
+  - pandas
+  - pip
+  - pip:
+    - pytesseract==0.3.10
+    - google-cloud-vision==3.4.4
+    - pydantic==2.5.0
+    - spacy==3.7.2
+    - streamlit==1.28.1
+    - pdf2image==1.17.0
+    - pdfplumber==0.10.3
+    - python-multipart==0.0.6
