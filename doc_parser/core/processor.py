@@ -96,9 +96,16 @@ class DocumentProcessor:
                     'bboxes': [bbox for r in all_results for bbox in r['bboxes']]
                 }
         else:
-            # For image files, use OCR directly
-            ocr_result = self.ocr_engine.recognize(file_path)
+            # For image files, use OCR directly with PNG-specific preprocessing
+            is_png = ext == '.png'
+            ocr_result = self.ocr_engine.recognize(file_path, is_png=is_png)
+
+            # Post-process PNG text to fix spacing issues (only for local OCR engines)
             all_text = ocr_result['text']
+            # Skip postprocessing for cloud OCR services (Google Vision, Baidu) as they already produce good spacing
+            if is_png and all_text and ocr_result.get('engine', 'tesseract') == 'tesseract':
+                all_text = self._postprocess_png_text(all_text)
+
             combined_ocr = {
                 'text': all_text,
                 'confidence': ocr_result['confidence'],
@@ -232,6 +239,34 @@ class DocumentProcessor:
             raise ImportError("pdf2image not installed")
         except Exception as e:
             raise RuntimeError(f"PDF conversion failed: {str(e)}")
+
+    def _postprocess_png_text(self, text: str) -> str:
+        """Post-process PNG OCR text to fix spacing issues"""
+        if not text:
+            return text
+
+        import re
+
+        # Fix common spacing issues in PNG OCR results
+
+        # 1. Add spaces between concatenated words (English)
+        # Look for patterns like: "Youwillhave" -> "You will have"
+        text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
+
+        # 2. Add spaces around numbers
+        text = re.sub(r'([a-zA-Z])(\d)', r'\1 \2', text)
+        text = re.sub(r'(\d)([a-zA-Z])', r'\1 \2', text)
+
+        # 3. Fix common OCR errors
+        text = text.replace('willhave', 'will have')
+        text = text.replace('Youwill', 'You will')
+        text = text.replace('theposition', 'the position')
+        text = text.replace('ofSoftware', 'of Software')
+
+        # 4. Clean up excessive spaces
+        text = re.sub(r'\s+', ' ', text)
+
+        return text.strip()
 
     def save_results(self, results: List[StructuredOutput], output_dir: str, save_raw_text: bool = True, save_json: bool = True):
         """

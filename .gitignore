@@ -211,3 +211,8 @@ __marimo__/
 output_files/*
 test_files/*
 *.png
+
+# Google Cloud credentials
+credentials.json
+*.credentials.json
+google-credentials.json

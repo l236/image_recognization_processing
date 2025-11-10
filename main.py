@@ -61,11 +61,33 @@ def process_batch(folder_path: str, output_dir: str, ocr_config: OCRConfig, extr
 def main():
     st.title("OCR and Structured Extraction Tool")
 
-    # Load configs from file
-    with open("config.json", 'r', encoding='utf-8') as f:
-        config_data = json.load(f)
+    # Sidebar for configuration
+    st.sidebar.header("⚙️ Configuration")
 
+    # OCR Engine Selection
+    ocr_engine = st.sidebar.selectbox(
+        "OCR Engine",
+        ["paddle", "pytesseract", "google_vision"],
+        index=0,
+        help="Choose OCR engine. PaddleOCR is the default with excellent quality. Tesseract is fast. Google Vision requires API setup."
+    )
+
+    # Load existing config
+    try:
+        with open("config.json", 'r', encoding='utf-8') as f:
+            config_data = json.load(f)
+    except FileNotFoundError:
+        config_data = {
+            "ocr": {"engine": "paddle"},
+            "extraction": {"enable_adaptive_fields": True, "fields": []},
+            "validation": {"confidence_threshold": 0.7}
+        }
+
+    # Create processor with current configuration
     from doc_parser.core.processor import DocumentProcessorConfig, ValidationConfig
+
+    # Update config with current settings
+    config_data['ocr']['engine'] = ocr_engine
 
     ocr_config = OCRConfig(**config_data['ocr'])
     extraction_config = ExtractionConfig(**config_data['extraction'])
@@ -87,42 +109,96 @@ def main():
         st.subheader("Raw Text")
         st.text_area("OCR Result", result.raw_text, height=200)
 
-        st.subheader("Extracted Fields")
-        for field in result.extracted_fields:
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.write(f"**{field.name}**")
-            with col2:
-                st.write(field.value or "Not extracted")
-            with col3:
-                st.write(f"Confidence: {field.confidence:.1f}%")
+        st.subheader("Extracted Fields & Manual Correction")
 
-        if result.low_confidence_fields:
-            st.subheader("Fields requiring manual verification")
-            st.write(", ".join(result.low_confidence_fields))
-
-        # Manual correction
-        st.subheader("Manual correction")
+        # Create editable table for all fields
         corrected_fields = {}
-        for field in result.extracted_fields:
-            corrected_value = st.text_input(f"Correct {field.name}", value=field.value or "")
-            corrected_fields[field.name] = corrected_value
 
-        if st.button("Regenerate JSON"):
-            # Update fields with corrections
-            for field in result.extracted_fields:
-                if field.name in corrected_fields:
-                    field.value = corrected_fields[field.name]
-                    field.confidence = 100.0  # Assume manual correction is 100%
+        # Group fields by name to handle duplicates
+        field_groups = {}
+        for i, field in enumerate(result.extracted_fields):
+            if field.value and field.value.strip():  # Only show fields with values
+                field_key = f"{field.name}_{i}"  # Make key unique
+                if field.name not in field_groups:
+                    field_groups[field.name] = []
+                field_groups[field.name].append((i, field))
 
-            result.low_confidence_fields = []
+        # Display fields grouped by name
+        for field_name, field_list in field_groups.items():
+            # Show the best (highest confidence) field for each name
+            best_field = max(field_list, key=lambda x: x[1].confidence)[1]
 
-            st.download_button(
-                "Download structured JSON",
-                data=result.model_dump_json(indent=2),
-                file_name="structured_output.json",
-                mime="application/json"
-            )
+            col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 1, 2])
+
+            with col1:
+                count = len(field_list)
+                display_name = f"**{field_name}**"
+                if count > 1:
+                    display_name += f" ({count} variants)"
+                st.write(display_name)
+
+            with col2:
+                # Editable text input for field name/key
+                corrected_name = st.text_input(
+                    f"Key for {field_name}",
+                    value=field_name,
+                    key=f"name_{field_name}",
+                    label_visibility="collapsed"
+                )
+
+            with col3:
+                # Editable text input for field value
+                corrected_value = st.text_input(
+                    f"Value for {field_name}",
+                    value=best_field.value,
+                    key=f"value_{field_name}",
+                    label_visibility="collapsed"
+                )
+
+            with col4:
+                confidence_color = "🟢" if best_field.confidence >= 80 else "🟡" if best_field.confidence >= 60 else "🔴"
+                st.write(f"{confidence_color} {best_field.confidence:.0f}%")
+
+            with col5:
+                if best_field.confidence < 70:
+                    st.write("⚠️ Needs review")
+                else:
+                    st.write("✅ Good")
+
+            # Store both name and value corrections
+            if field_name not in corrected_fields:
+                corrected_fields[field_name] = {}
+            corrected_fields[field_name]['name'] = corrected_name
+            corrected_fields[field_name]['value'] = corrected_value
+
+        # Action buttons
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("🔄 Regenerate with Corrections", type="primary"):
+                # Update fields with corrections (both names and values)
+                for field in result.extracted_fields:
+                    if field.name in corrected_fields:
+                        corrections = corrected_fields[field.name]
+                        field.name = corrections['name']  # Update field name/key
+                        field.value = corrections['value']  # Update field value
+                        field.confidence = 100.0  # Manual corrections get 100% confidence
+
+                result.low_confidence_fields = []
+                st.success("✅ Fields updated with corrections!")
+
+                # Show updated JSON
+                st.subheader("Updated JSON Output")
+                st.json(result.model_dump())
+
+        with col2:
+            if st.button("� Download JSON"):
+                st.download_button(
+                    "Download structured JSON",
+                    data=result.model_dump_json(indent=2),
+                    file_name="structured_output.json",
+                    mime="application/json"
+                )
 
 if __name__ == "__main__":
     main()

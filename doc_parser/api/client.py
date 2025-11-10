@@ -30,40 +30,19 @@ class DocumentParserClient:
         elif config_dict:
             config_data = config_dict
         else:
-            # Default configuration
-            config_data = {
-                "ocr": {
-                    "engine": "pytesseract",
-                    "custom_words": ["invoice", "contract", "amount", "date", "发票", "合同", "金额", "日期"],
-                    "lang": "chi_sim+eng"
-                },
-                "extraction": {
-                    "fields": [
-                        {
-                            "name": "Invoice Number",
-                            "pattern": ["invoice number", "发票号码", "invoice no"],
-                            "regex_patterns": ["Invoice No\\.?\\s*(\\w+)", "发票号码[:：]\\s*(\\w+)"]
-                        },
-                        {
-                            "name": "Amount",
-                            "pattern": ["total", "amount", "总计", "合计"],
-                            "regex_patterns": ["\\$\\s*([\\d,\\.]+)", "￥\\s*([\\d,\\.]+)", "金额[:：]\\s*([\\d,\\.]+)"],
-                            "post_process": "amount_normalize"
-                        },
-                        {
-                            "name": "Date",
-                            "pattern": ["date", "日期", "开票日期"],
-                            "entity_type": "DATE",
-                            "regex_patterns": ["\\d{4}[-年]\\d{1,2}[-月]\\d{1,2}日?", "\\d{4}/\\d{1,2}/\\d{1,2}"],
-                            "post_process": "date_normalize"
-                        }
-                    ]
-                },
-                "validation": {
-                    "confidence_threshold": 0.8,
-                    "required_fields": []
-                }
-            }
+            # Try to load from default config.json first
+            default_config_path = Path("config.json")
+            if default_config_path.exists():
+                try:
+                    with open(default_config_path, 'r', encoding='utf-8') as f:
+                        config_data = json.load(f)
+                    print("✅ Loaded configuration from config.json")
+                except Exception as e:
+                    print(f"⚠️  Could not load config.json: {e}, using defaults")
+                    config_data = self._get_default_config()
+            else:
+                # Default configuration
+                config_data = self._get_default_config()
 
         # Parse configuration
         ocr_config = OCRConfig(**config_data['ocr'])
@@ -72,6 +51,42 @@ class DocumentParserClient:
         processor_config = DocumentProcessorConfig(ocr=ocr_config, extraction=extraction_config, validation=validation_config)
 
         self.processor = DocumentProcessor(processor_config)
+
+    def _get_default_config(self) -> Dict[str, Any]:
+        """Get default configuration"""
+        return {
+            "ocr": {
+                "engine": "pytesseract",
+                "custom_words": ["invoice", "contract", "amount", "date", "发票", "合同", "金额", "日期"],
+                "lang": "chi_sim+eng"
+            },
+            "extraction": {
+                "fields": [
+                    {
+                        "name": "Invoice Number",
+                        "pattern": ["invoice number", "发票号码", "invoice no"],
+                        "regex_patterns": ["Invoice No\\.?\\s*(\\w+)", "发票号码[:：]\\s*(\\w+)"]
+                    },
+                    {
+                        "name": "Amount",
+                        "pattern": ["total", "amount", "总计", "合计"],
+                        "regex_patterns": ["\\$\\s*([\\d,\\.]+)", "￥\\s*([\\d,\\.]+)", "金额[:：]\\s*([\\d,\\.]+)"],
+                        "post_process": "amount_normalize"
+                    },
+                    {
+                        "name": "Date",
+                        "pattern": ["date", "日期", "开票日期"],
+                        "entity_type": "DATE",
+                        "regex_patterns": ["\\d{4}[-年]\\d{1,2}[-月]\\d{1,2}日?", "\\d{4}/\\d{1,2}/\\d{1,2}"],
+                        "post_process": "date_normalize"
+                    }
+                ]
+            },
+            "validation": {
+                "confidence_threshold": 0.8,
+                "required_fields": []
+            }
+        }
 
     def process_file(self, file_path: Union[str, Path]) -> Dict[str, Any]:
         """

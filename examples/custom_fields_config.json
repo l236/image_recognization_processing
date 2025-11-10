@@ -1,0 +1,53 @@
+{
+  "document_type": "custom_example",
+  "ocr": {
+    "engine": "pytesseract",
+    "lang": "chi_sim+eng"
+  },
+  "extraction": {
+    "enable_adaptive_fields": true,
+    "fields": [
+      {
+        "name": "Patient Name",
+        "pattern": ["患者姓名", "病人姓名", "patient name"],
+        "description": "Name of the patient",
+        "regex_patterns": [
+          "患者[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "病人[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "patient[:：]\\s*([\\w\\s\u4e00-\u9fff]+)"
+        ]
+      },
+      {
+        "name": "Diagnosis",
+        "pattern": ["诊断", "诊断结果", "diagnosis"],
+        "description": "Medical diagnosis",
+        "regex_patterns": [
+          "诊断[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "diagnosis[:：]\\s*([\\w\\s\u4e00-\u9fff]+)"
+        ]
+      },
+      {
+        "name": "Prescription",
+        "pattern": ["处方", "药方", "prescription"],
+        "description": "Prescribed medication",
+        "regex_patterns": [
+          "处方[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "prescription[:：]\\s*([\\w\\s\u4e00-\u9fff]+)"
+        ]
+      },
+      {
+        "name": "Doctor Notes",
+        "pattern": ["医生备注", "医嘱", "doctor notes"],
+        "description": "Doctor's observations and notes",
+        "regex_patterns": [
+          "备注[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "医嘱[:：]\\s*([\\w\\s\u4e00-\u9fff]+)",
+          "notes[:：]\\s*([\\w\\s\u4e00-\u9fff]+)"
+        ]
+      }
+    ]
+  },
+  "validation": {
+    "required_fields": ["Patient Name", "Diagnosis"]
+  }
+}

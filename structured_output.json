@@ -1,0 +1,58 @@
+{
+  "filename": "contract.png",
+  "raw_text": "1. Your Position You will have the position of Software Engineer and will report to Xudong Zhang,Director in the Toronto office,located at 9 pheasant Dr,Richmond hill,Ontario,L4E 3S9.We anticipate that you will start work on March 23,2025(your \"Start Date\").You will have whatever reasonable duties that are assigned to you consistent with your title and position.Croschat may change your title and duties as it sees fit,as per the Changes provisions of this Agreement. 2. Probationary Period The initial six(6)months of your employment will be on a probationary basis.During this probationary period,you may terminate your employment,without any advance notice.During the probationary period, Croschat may also terminate your employment:(i)with cause,without notice of termination or pay in lieu;or(ii) without cause,by providing you with the minimum amount of notice of termination (or pay in lieu)and other minimum statutory entitlements mandated by the Employment Standards Act,2000(Ontario),as amended from time to time (\"ESA\"),including benefits continuation for the minimum period of notice to which you are entitled under the ESA.No other notice of termination (or pay in lieu),either at common law or otherwise,shall be provided by Croschat.After you have completed your probationary period,you will become a regular full-time employee. 3. Compensation You will receive a gross base salary of RMB 5,000 in Cash and 10,000 RMB worth of equities per month,payable monthly and according to Croschat customary payroll practices.Please note that your position is exempt from the overtime provisions of the ESA.You will be expected to work additional hours,either at our request or when the proper performance of your work so requires and are not entitled to any additional remuneration for doing so.All amounts provided to you under this Agreement will be in Canadian dollars,less all applicable tax withholdings and statutory and other deductions.Moreover,your weekly working hours will be 40 hours.",
+  "extracted_fields": [
+    {
+      "name": "Amount",
+      "value": "5,000",
+      "confidence": 90.0,
+      "bbox": null
+    },
+    {
+      "name": "Name",
+      "value": "Your Position",
+      "confidence": 75.0,
+      "bbox": null
+    },
+    {
+      "name": "Name",
+      "value": "Software Engineer",
+      "confidence": 75.0,
+      "bbox": null
+    },
+    {
+      "name": "Name",
+      "value": "Xudong Zhang",
+      "confidence": 75.0,
+      "bbox": null
+    },
+    {
+      "name": "Name",
+      "value": "Start Date",
+      "confidence": 75.0,
+      "bbox": null
+    },
+    {
+      "name": "Name",
+      "value": "Probationary Period",
+      "confidence": 75.0,
+      "bbox": null
+    },
+    {
+      "name": "Name",
+      "value": "Employment Standards",
+      "confidence": 75.0,
+      "bbox": null
+    },
+    {
+      "name": "Name",
+      "value": "Compensation You",
+      "confidence": 75.0,
+      "bbox": null
+    }
+  ],
+  "low_confidence_fields": [],
+  "missing_required_fields": [],
+  "overall_confidence": 85.0,
+  "validation_passed": true
+}
